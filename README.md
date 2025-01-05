@@ -11,7 +11,7 @@ This package is designed to allow for sampling, building, and managing the CMIE 
 This program is written as a standalone program and requires no dependencies. It was complied and tested on an arm64 Mac version 15.2. If you wish to use on an earlier version or a different architecture, you must recompile using pyinstaller. Due to program signatures, you will need to bypass GateKeeper and self sign. Unzip and attempt to run the program. You will get a failure to load pop-up. Go to "Privacy & Security" in settings and scroll down to the "Security" section. Find the program listed in the section and select the option to "Open Anyway" and complete the prompts. You can now open the program as you would normally. 
 
 
-The data directory containing the raw data files from CMIE Consumer Pyramids must be structured as follows. 
+The data directory containing the raw data files from must be structured as follows: 
 
     data_directory 
            ├── aspirational
@@ -41,7 +41,7 @@ The data directory containing the raw data files from CMIE Consumer Pyramids mus
 <br/><br/>
 ## Program Menus
 ### Pyramid Builder
-Allows the researcher to sample and construct pyramids. A simple GUI framework allows the user to select the sampling options:  
+Allows the researcher to sample and construct pyramids using the following options:  
 
     Date Range: Date of observations
     Sampling Level: Sample on individuals or households
@@ -52,13 +52,11 @@ Allows the researcher to sample and construct pyramids. A simple GUI framework a
     File Size: Size of output chunks
     Random Seed: Value to set for random sampling
 
-The sampled data will be output to a folder `sampled_pyramids_YYYYMMDD_HHMM` containing the output chunks and a log file which details the sampling parameters. 
-
-**NOTE:** Selecting large date ranges or many variables will result in significantly slower speeds. Merging on all data is not advised.
+The sampled data will be output to a folder `sampled_pyramids_YYYYMMDD_HHMM` containing the output chunks and a log file which details the sampling parameters. Note that selecting large date ranges or many variables will result in significantly slower speeds. **Merging on all data is not advised.**
     <br/><br/>
 ### Variable Explorer
-Allows the researcher to both view and select the desired variables from the available pyramids. Variables can also be selected outside the program by creating a manual variable selection outside the program based on the `pyramid_variables.yaml` in the repo.
+Allows the researcher to both view and select the desired variables from the available pyramids. Variables can also be selected outside the program by creating a manual variable selection based on the `pyramid_variables.yaml` in the repo.
 <br/><br/>
 ### Configuration 
-This menu shows the current configuration of the data and the last configuration. The `reinitialization` option is used to rebase the program if new pyramids data is added to the data directory. The button will be disabled until the appropriate data directory is input. 
+This menu shows the current configuration of the data and the last configuration. The `reinitialization` option is used to rebase the program if new pyramids are added to the data directory. The button will be disabled until the appropriate data directory is input. 
 <br/><br/>

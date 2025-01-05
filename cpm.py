@@ -1035,8 +1035,8 @@ Build Date/Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 Data Initialization Date: {config['INITIALIZATION_DATE']}
 
+Data Directory: {data_dir.get()}
 Output Directory: {output_dir.get()}
-Output Directory: {data_dir.get()}
 Export Format: {format_combobox.get()}
 File Size: {file_size_var.get()} GB
 Random Seed: {seed_var.get()}
