@@ -92,6 +92,14 @@ def variable_finder(config):
 
 # This function resets the configuration file used to manage the program
 def reinitializer(config, progress_bar, warning_window):
+    # Check data directory
+    if config["DATA_DIRECTORY"] is None:
+        messagebox.showerror("Error", "Data directory is missing.")
+        return 1
+    elif not os.path.exists(resource_path(config["DATA_DIRECTORY"])):
+        messagebox.showerror("Error", "Data directory does not exist.")
+        return 1
+    
     individuals = indiv_id_finder(config, progress_bar, warning_window)
     pyramid_variables = variable_finder(config)
     individual_data_location = config["INDIV_INC_MONTHLY_LOCATION"]
@@ -124,6 +132,7 @@ def reinitializer(config, progress_bar, warning_window):
 
 # This function constructs the sampled data
 def pyramid_builder(
+    data_dir,
     output_dir,
     file_format,
     file_size,
@@ -183,10 +192,10 @@ def pyramid_builder(
         return 1
     
     # Check data directory
-    if config["DATA_DIRECTORY"] is None:
+    if data_dir is None:
         messagebox.showerror("Error", "Data directory is missing.")
         return 1
-    elif not os.path.exists(resource_path(config["DATA_DIRECTORY"])):
+    elif not os.path.exists(resource_path(data_dir)):
         messagebox.showerror("Error", "Data directory does not exist.")
         return 1
 
@@ -241,7 +250,7 @@ def pyramid_builder(
     for pyramid_type in selected_pyramid_types:
         pyramid_files = os.path.join(
             Path(
-                str(config["DATA_DIRECTORY"])
+                str(data_dir)
                 + config[pyramid_type + "_LOCATION"]
                 + "/"
             ),
@@ -358,10 +367,8 @@ def pyramid_builder(
             print(f"Processing {ptype}")
             # Remove duplicate columns except for key columns
             if ptype in ["INDIV_INC_MONTHLY", "PEOPLE_WAVES"]:
-                key_cols = ["HH_ID", "MEM_ID"]
                 individual_pyramids.append(df)
             else:
-                key_cols = ["HH_ID"]
                 household_pyramids.append(df)
 
         # Function to handle duplicate columns during merge
@@ -437,11 +444,6 @@ def pyramid_builder(
         print(f"End date: {end_month}")
         print(f"Comparison: {current_month <= end_month}")
 
-
-    # # Export remaining pyramid at the end of last iteration
-    # if len(continuing_df) > 0:
-    #     file_path = os.path.join(output_folder, f"pyramid_part_{file_counter}")
-    #     export_dataframe(continuing_df, file_path, file_format)
 
     # Export summary log to the output directory
     with open(os.path.join(output_folder, "log.txt"), "w") as f:
@@ -545,8 +547,8 @@ class CPB_GUI:
         content_frame, action_frame, button_frame = self.create_content_window(
             "Pyramid Builder"
         )
-        self.root.geometry("700x700")
-        self.center_window(self.root, 700, 700)
+        self.root.geometry("700x800")
+        self.center_window(self.root, 700, 800)
 
 
         ### DATE SELECTION OPTIONS
@@ -767,6 +769,46 @@ class CPB_GUI:
         # Initial state update
         update_sample_state()
 
+
+
+        ### DATA DIRECTORY OPTIONS
+        # Create output directory frame
+        data_frame = ttk.Frame(content_frame)
+        data_frame.pack(fill="x", padx=20, pady=(20, 0), anchor="w")
+
+        # Output Directory Label
+        ttk.Label(data_frame, text="Data Directory:").pack(anchor="w")
+
+        # Create frame for directory entry and browse button
+        dir_select_frame = ttk.Frame(data_frame)
+        dir_select_frame.pack(fill="x", pady=(5, 0))
+
+        # Directory entry
+        data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
+        dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=50)  # Connect to data_dir
+        dir_entry.pack(side="left", padx=(0, 5))
+
+        # Function to allow selection of the output directory
+        def browse_directory():
+            directory = filedialog.askdirectory(
+                initialdir=data_dir.get() if data_dir.get() else "/",
+                title="Select Data Directory",
+            )
+            if directory:  # Only update if a directory was selected
+                data_dir.set(directory)
+                config["DATA_DIRECTORY"] = directory  # Update config
+                # Save to file
+                with open(resource_path("config.yaml"), "w") as file:
+                    yaml.dump(config, file)
+
+        # Browse button
+        browse_button = ttk.Button(
+            dir_select_frame, text="Browse", command=browse_directory
+        )
+        browse_button.pack(side="left")
+
+
+
         ### OUTPUT DIRECTORY OPTIONS
         # Create output directory frame
         output_frame = ttk.Frame(content_frame)
@@ -792,12 +834,19 @@ class CPB_GUI:
             )
             if directory:  # Only update if a directory was selected
                 output_dir.set(directory)
+                config["OUTPUT_DIRECTORY"] = directory  # Update config
+                # Save to file
+                with open(resource_path("config.yaml"), "w") as file:
+                    yaml.dump(config, file)
+
 
         # Browse button
         browse_button = ttk.Button(
             dir_select_frame, text="Browse", command=browse_directory
         )
         browse_button.pack(side="left")
+
+
 
 
         ### VARIABLE SELECTION OPTIONS
@@ -842,8 +891,8 @@ class CPB_GUI:
         )
 
         # File entry
-        vars_file = tk.StringVar(value=default_vars_file)
-        file_entry = ttk.Entry(file_select_frame, textvariable=vars_file, width=48)
+        vars_file = tk.StringVar() #value=default_vars_file
+        file_entry = ttk.Entry(file_select_frame, textvariable=vars_file, width=48)  # Add textvariable here
         file_entry.pack(side="left", padx=(0, 5))
 
         # Function to search for variable selection file
@@ -855,6 +904,7 @@ class CPB_GUI:
             )
             if filename:  # Only update if a file was selected
                 vars_file.set(filename)
+
 
         # Browse button
         vars_browse_button = ttk.Button(
@@ -986,6 +1036,7 @@ Build Date/Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Data Initialization Date: {config['INITIALIZATION_DATE']}
 
 Output Directory: {output_dir.get()}
+Output Directory: {data_dir.get()}
 Export Format: {format_combobox.get()}
 File Size: {file_size_var.get()} GB
 Random Seed: {seed_var.get()}
@@ -1078,6 +1129,7 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                     try:
                         # Your long running task here
                         pyramid_builder(
+                            data_dir=data_dir.get(),
                             output_dir=output_dir.get(),
                             file_format=format_combobox.get(),
                             file_size=file_size_var.get(),
@@ -1404,8 +1456,8 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
         content_frame, action_frame, button_frame = self.create_content_window(
             "Configuration"
         )
-        self.root.geometry("800x600")
-        self.center_window(self.root, 800, 600)
+        self.root.geometry("600x500")
+        self.center_window(self.root, 600, 500)
 
         def select_data_directory():
             directory = filedialog.askdirectory()
@@ -1532,34 +1584,12 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
             # Start the progress update
             warning_window.after(100, update_progress)
 
-        # Add the three action buttons with increased width
-
-        reinit_button = ttk.Button(
-            button_frame, text="Reinitialize", command=show_reinit_warning, width=15
-        )
-        reinit_button.pack(side="right", padx=5)
-
-        set_output_button = ttk.Button(
-            button_frame,
-            text="Set Output Directory",
-            command=select_output_directory,
-            width=15,
-        )
-        set_output_button.pack(side="right", padx=5)
-
-        set_data_button = ttk.Button(
-            button_frame,
-            text="Set Data Directory",
-            command=select_data_directory,
-            width=15,
-        )
-        set_data_button.pack(side="right", padx=5)
 
         # Define order and custom names for config keys
         config_display = [
             ("INITIALIZATION_DATE", "Configuration Date"),
-            ("DATA_DIRECTORY", "Data Directory"),
-            ("OUTPUT_DIRECTORY", "Output Directory"),
+            # ("DATA_DIRECTORY", "Data Directory"),
+            # ("OUTPUT_DIRECTORY", "Output Directory"),
             ("MIN_SAMPLE_DATE", "Data Start Date"),
             ("MAX_SAMPLE_DATE", "Data End Date"),
             ("TOTAL_HOUSEHOLDS", "Households in Data"),
@@ -1596,6 +1626,65 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                 width=80,
             )
             value_label.pack(side="left", padx=5)
+
+        ### DATA DIRECTORY OPTIONS
+        # Create output directory frame
+        data_frame = ttk.Frame(content_frame)
+        data_frame.pack(fill="x", padx=20, pady=(20, 0), anchor="w")
+
+        # Output Directory Label
+        ttk.Label(data_frame, text="Data Directory:").pack(anchor="w")
+
+        # Create frame for directory entry and browse button
+        dir_select_frame = ttk.Frame(data_frame)
+        dir_select_frame.pack(fill="x", pady=(5, 0))
+
+        # Directory entry
+        data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
+        dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=40)  # Connect to data_dir
+        dir_entry.pack(side="left", padx=(0, 5))
+
+        # Function to allow selection of the output directory
+        def browse_directory():
+            directory = filedialog.askdirectory(
+                initialdir=data_dir.get() if data_dir.get() else "/",
+                title="Select Data Directory",
+            )
+            if directory:  # Only update if a directory was selected
+                data_dir.set(directory)
+                config["DATA_DIRECTORY"] = directory  # Update config
+                # Save to file
+                with open(resource_path("config.yaml"), "w") as file:
+                    yaml.dump(config, file)
+                update_reinit_button()  # Update button state
+
+        # Function to update reinit button state
+        def update_reinit_button():
+            if data_dir.get().strip():  # Enable if there's a directory
+                reinit_button.configure(state="normal")
+            else:  # Disable if directory is empty
+                reinit_button.configure(state="disabled")
+
+        # Browse button
+        browse_button = ttk.Button(
+            dir_select_frame, text="Browse", command=browse_directory
+        )
+        browse_button.pack(side="left")
+
+        # Add the reinit button (modified to start disabled)
+        reinit_button = ttk.Button(
+            button_frame, 
+            text="Reinitialize", 
+            command=show_reinit_warning, 
+            width=15,
+            state="disabled" if not data_dir.get().strip() else "normal"
+        )
+        reinit_button.pack(side="right", padx=5)
+
+        # Initial button state
+        update_reinit_button()
+
+
 
     # Function to start the GUI
     def run(self):
