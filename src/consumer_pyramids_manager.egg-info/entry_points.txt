@@ -1,2 +1,0 @@
-[console_scripts]
-consumer_pyramids_manager = consumer_pyramids_manager.foreman:foreman

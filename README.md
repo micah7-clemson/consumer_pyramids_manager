@@ -1,5 +1,5 @@
 # Consumer Pyramids Manager
-This package is designed to allow for sampling, building, and managing the CMIE Consumer Pyramids Data. The program runs in a command line interface with options for updating the codebook when new data is added, selecting variables of interest, and building/sampling data as needed.
+This package is designed to allow for sampling, building, and managing the CMIE Consumer Pyramids Data. The program runs in a GUI built with tkinkter and compiled for Apple Silicon Mac on version 15.2 using pyinstaller on python 3.10. See the release details for the latest version.
 <br/><br/>
 
 ## Author:
@@ -7,71 +7,47 @@ This package is designed to allow for sampling, building, and managing the CMIE 
 - (micahdthomas@gmail.com)
 <br/><br/>
 
-## Installation Instructions (MacOS and Windows):
-- Install Python 3 (built on 3.10.6)
-- Download pip:
-    ```bash
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-    ```
-- Install pip:
-    ```bash
-    python3 get-pip.py
-    ```
-- Manually install package dependencies (pip3 throws error if done within .tar.gz). From the root of the repo, enter the following command:
-    ```bash
-    pip3 install -r requirements.txt
-    ```
-- Install the consumer_pyramids_manager.<br/> From the root of the repo, enter the following command:
-    ```bash
-    pip3 install dist/*.tar.gz
-    ```
-- The program can now be called by entering the  ```consumer_pyramids_manager``` command in terminal.
 
-- **NOTE:** Initialization must be run upon first installation.
-<br/><br/>
+## Program Menus
+### Pyramid Builder
+Allows the researcher to sample and construct pyramids. A simple GUI framework allows the user to select the sampling options:  
 
-## Windows Installation Instructions Addendum:
-- Due to compatibility errors with some of the dependencies, all of the above instructions must be completed within Windows Subsystem for Linux (WSL2). Install according to your machine's instructions then follow the instructions as normal. 
-- It is possible that pip will not automatically populate in the system variables, to correct this follow these steps:
-    - Open the Control Panel and navigate to System.
-    - Click on Advanced system settings in the upper left panel.
-    - Click on Environment Variables.
-    - Under System Variables, scroll down then double-click the PATH variable.
-    - Click New, and add the directory where pip3 is installed, e.g. C:\Python38\Scripts , and select OK. 
+    Date Range: Date of observations
+    Sampling Level: Sample on individuals or households
+    Output Directory: Location for sampled data
+    Variable Options: Desired variables in output data
+    Export Format: File format on output data
+    File Size: Size of output chunks
+    Random Seed: Value to set for random sampling
+
+The sampled data will be output to a folder `sampled_pyramids_YYYYMMDD_HHMM` containing the output chunks and a log file which details the sampling parameters. 
+
+**NOTE:** Selecting large date ranges or many variables will result in significantly slower speeds. Merging on all data is not advised.
     <br/><br/>
-
-## Alternate Installation:
-- In the event of dependency clash or failure to install, these instructions enable manual operation. Follow the installation instructions as laid out above, but skip the last step installing the consumer_pyramids_manager package. Instead, once the dependencies are installed, from the root of the src folder, run the following command:
-    ```bash
-    python3 src/foreman.py
-    ```
-<br/>
-
-
-## Program Menus:
-- **Initialization:** Enables the declaration of data and output directories. Enter the initialization menu to point to the desired locations. The default data directory is the root folder containing the folder: dataraw, codebook, dataready. Where dataraw contains the raw consumer pyramids files from CPME. The default output directory points to the dataready folder in the data directory.<br/><br/>
-- **Codebook Updater:** If new data has been added to the dataraw directory or the directory is just established, run codebook updater to pull identifiers, generate individual ids, and prep for variable selection.<br/><br/>
-- **Variable Selection:** Allows the researcher to select the desired variables from the available pyramids. It is advised to select on variables after running codebook upater as the default may be to utilize all variables. If you wish to merging a single pyramid, select all variables from only the desired pyramid and keep only the default variables on the others. **Variables can also be selected outside the program by copying desired variables from ```./codebook/vars_all.xlsx``` to ```./codebook/vars_selected.xlsx``` after generation is completed by the codebook updater.**<br/><br/>
-- **Pyramid Builder:** Allows the researcher to sample and construct pyramids using the selected variables.<br/><br/>
-- **Help:** Contains basic information for the use of the program.
+### Variable Explorer
+Allows the researcher to both view and select the desired variables from the available pyramids. Variables can also be selected outside the program by creating a custom variable selection based on the `pyramid_variables.yaml` in the repo.
+<br/><br/>
+### Configuration 
+This menu shows the current configuration of the data including the data directory and output directories. The `reinitialization` option is used to rebase the program if new pyramids data is added to the data directory.
 <br/><br/>
 
-## Data Directory Setup:
-The data directory containing the raw data files from CMIE Consumer Pyramids must be structured as follows. Dataready is a default output folder, but can be changed within the program. 
+## Setup Instructions
+This program is written as a standalone program and requires no dependencies. It was complied and tested on an arm64 Mac version 15.2. If you wish to use on an earlier version or a different architecture, you must recompile using pyinstaller. Due to program signatures, you may need to enable the program in settings. 
+
+Upon first run, you must set both the data and output directories in the configuration menu. Failure to do so may result in errors. 
+
+The data directory containing the raw data files from CMIE Consumer Pyramids must be structured as follows. 
 
     data_directory 
-        ├── codebook  
-        ├── dataready  
-        └── dataraw  
            ├── aspirational
-           │   └── quarterly
+           │   └── waves
            │       ├─- aspirational_india_YYYYMMDD_YYYYMMDD_R.csv
            |       └── ...
            ├── consumption
            │   ├── monthly
            │   │   ├── consumption_pyramids_YYYYMMDD_MS_rev.csv
            │   │   └── ...
-           │   └── quarterly
+           │   └── waves
            │       ├── consumption_pyramids_YYYYMMDD_YYYYMMDD_R.csv
            │       └── ...
            ├── income
@@ -83,7 +59,7 @@ The data directory containing the raw data files from CMIE Consumer Pyramids mus
            │           ├── member_income_YYYYMMDD_MS_rev.csv
            │           └── ...
            └── people
-               └── quarterly
+               └── waves
                    ├── people_of_india_YYYYMMDD_YYYYMMDD_R.csv
                    └── ...
 
