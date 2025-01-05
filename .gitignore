@@ -2,3 +2,4 @@ dist/
 build/
 output/
 CPM.7z
+.DS_Store
