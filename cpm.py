@@ -122,7 +122,7 @@ def reinitializer(config, progress_bar, warning_window):
     ).nunique()
     config["INITIALIZATION_DATE"] = datetime.now().strftime("%m-%d-%Y")
 
-    individuals.to_parquet(resource_path("pyramid_ids.parquet"), index=False)
+    individuals.to_csv(resource_path("pyramid_ids.csv"), index=False)
     with open(resource_path("pyramid_variables.yaml"), "w") as f:
         yaml.dump(pyramid_variables, f)
     with open(resource_path("config.yaml"), "w") as f:
@@ -143,6 +143,7 @@ def pyramid_builder(
     selected_vars_location,
     is_sample_enabled,
     sample_type,
+    selected_ids_location,
     n_households=None,
     n_individuals=None,
     running_flag=lambda: True,
@@ -201,12 +202,28 @@ def pyramid_builder(
 
     # Sampling households or individuals based on user selection
     if is_sample_enabled:
-        if not os.path.exists(resource_path("pyramid_ids.parquet")):
+        if not os.path.exists(resource_path("pyramid_ids.csv")):
             messagebox.showerror("Error", "Pyramid IDs not found.")
             return 1
+        print("PASS")
+        if sample_type == "ids":
+            if not os.path.exists(resource_path(selected_ids_location)):
+                messagebox.showerror("Error", "Selected IDs not found.")
+                return 1
+            else:
+                sampled_ids = pd.read_csv(resource_path(selected_ids_location))
+            print("YEP")
+            if "MEM_ID" in sampled_ids.columns and "HH_ID" in sampled_ids.columns:
+                sampled_individuals = (str(sampled_ids["HH_ID"]) + sampled_ids["MEM_ID"].astype(str).str.zfill(2)).tolist()
+                sample_type == "individuals"
+            elif "HH_ID" in sampled_ids.columns:
+                sampled_households = sampled_ids["HH_ID"].tolist()
+                sample_type == "households"
         else:
-            pyramid_ids = pd.read_parquet(resource_path("pyramid_ids.parquet"))
+            print("NAH")
+            pyramid_ids = pd.read_csv(resource_path("pyramid_ids.csv"))
             if sample_type == "households":
+                print("BLEH")
                 sampled_households = random.sample(
                     pyramid_ids["HH_ID"].tolist(), int(n_households)
                 )
@@ -424,6 +441,8 @@ def pyramid_builder(
         print(
             f"Current DataFrame size: {continuing_df.memory_usage(deep=True).sum() / (1024**3):.2f} GB"
         )
+        continuing_df = continuing_df.drop_duplicates()
+
 
         # Check file size and exporting if chunk exceeds the desired file size
         df_size = continuing_df.memory_usage(deep=True).sum()
@@ -751,20 +770,79 @@ class CPB_GUI:
             state = "normal" if sample_enabled.get() else "disabled"
             households_radio.configure(state=state)
             individuals_radio.configure(state=state)
+            ids_radio.configure(state=state)
             households_spinbox.configure(state=state)
             individuals_spinbox.configure(state=state)
+            ids_file_entry.configure(state=state)
+            ids_file_button.configure(state=state)
 
             # If enabling and nothing selected, default to households
             if sample_enabled.get() and not sample_type.get():
                 sample_type.set("households")
 
+            # Configure specific states based on selection
+            if sample_enabled.get():
+                if sample_type.get() == "households":
+                    individuals_spinbox.configure(state="disabled")
+                    ids_file_entry.configure(state="disabled")
+                    ids_file_button.configure(state="disabled")
+                elif sample_type.get() == "individuals":
+                    households_spinbox.configure(state="disabled")
+                    ids_file_entry.configure(state="disabled")
+                    ids_file_button.configure(state="disabled")
+                else:  # ids
+                    households_spinbox.configure(state="disabled")
+                    individuals_spinbox.configure(state="disabled")
+
             # Reset to max values if disabled
             if not sample_enabled.get():
                 households_value.set(str(config["TOTAL_HOUSEHOLDS"]))
                 individuals_value.set(str(config["TOTAL_INDIVIDUALS"]))
+                ids_file.set("")  # Clear the ids file path when disabled
+
 
         # Bind the update function to the sample_enabled variable
         sample_enabled.trace("w", update_sample_state)
+
+        # Add the IDs radio button
+        ids_radio = ttk.Radiobutton(
+            sample_frame,
+            text="Selected IDs:",
+            variable=sample_type,
+            value="ids",
+            command=update_sample_state
+        )
+        ids_radio.pack(anchor="w", padx=(20, 0))
+
+        # Add the IDs file selection box and button
+        ids_file = tk.StringVar()
+        ids_file_frame = ttk.Frame(sample_frame)
+        ids_file_frame.pack(fill="x", padx=(40, 0))
+
+        ids_file_entry = ttk.Entry(
+            ids_file_frame,
+            textvariable=ids_file,
+            width=10
+        )
+        ids_file_entry.pack(side="left", fill="x", expand=True)
+
+        # Function to search for variable selection file
+        def browse_ids_file(ids_file):
+            filename = filedialog.askopenfilename(
+                initialdir=os.path.dirname(vars_file.get()),
+                title="Select IDs File",
+                filetypes=(("CSV files", "*.csv"), ("All files", "*.*")),
+            )
+            if filename:  # Only update if a file was selected
+                ids_file.set(filename)
+
+        ids_file_button = ttk.Button(
+            ids_file_frame,
+            text="Browse",
+            command=lambda: browse_ids_file(ids_file)
+        )
+        ids_file_button.pack(side="right")
+
 
         # Initial state update
         update_sample_state()
@@ -786,7 +864,7 @@ class CPB_GUI:
         # Directory entry
         data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
         dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=50)  # Connect to data_dir
-        dir_entry.pack(side="left", padx=(0, 5))
+        dir_entry.pack(side="left", fill="x", expand=True)
 
         # Function to allow selection of the output directory
         def browse_directory():
@@ -824,7 +902,7 @@ class CPB_GUI:
         # Directory entry
         output_dir = tk.StringVar(value=config.get("OUTPUT_DIRECTORY", ""))
         dir_entry = ttk.Entry(dir_select_frame, textvariable=output_dir, width=50)
-        dir_entry.pack(side="left", padx=(0, 5))
+        dir_entry.pack(side="left", fill="x", expand=True)
 
         # Function to allow selection of the output directory
         def browse_directory():
@@ -893,7 +971,7 @@ class CPB_GUI:
         # File entry
         vars_file = tk.StringVar() #value=default_vars_file
         file_entry = ttk.Entry(file_select_frame, textvariable=vars_file, width=48)  # Add textvariable here
-        file_entry.pack(side="left", padx=(0, 5))
+        file_entry.pack(side="left", fill="x", expand=True)
 
         # Function to search for variable selection file
         def browse_variables_file():
@@ -1049,14 +1127,23 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                 summary_text += f"\nVariables File: {vars_file.get()}"
 
             if sample_enabled.get():
-                sample_text = f"{'Households' if sample_type.get() == 'households' else 'Individuals'}"
-                sample_value = (
-                    households_value.get()
-                    if sample_type.get() == "households"
-                    else individuals_value.get()
-                )
-                summary_text += f"\n\nSample Observations: {sample_text}"
-                summary_text += f"\nSample Count: {sample_value}"
+                sample_text = {
+                    'households': 'Households',
+                    'individuals': 'Individuals',
+                    'ids': 'Selected IDs'
+                }[sample_type.get()]
+                
+                if sample_type.get() in ["households", "individuals"]:
+                    sample_value = (
+                        households_value.get()
+                        if sample_type.get() == "households"
+                        else individuals_value.get()
+                    )
+                    summary_text += f"\n\nSample Observations: {sample_text}"
+                    summary_text += f"\nSample Count: {sample_value}"
+                else:  # ids
+                    summary_text += f"\n\nSample Type: {sample_text}"
+                    summary_text += f"\nIDs File: {ids_file.get()}"
 
             # Create text widget for summary
             summary_widget = tk.Text(
@@ -1152,6 +1239,11 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                             n_individuals=(
                                 individuals_value.get()
                                 if sample_type.get() == "individuals"
+                                else None
+                            ),
+                            selected_ids_location=(
+                                ids_file.get()
+                                if sample_type.get() == "ids"
                                 else None
                             ),
                             running_flag=lambda: popup.running,
@@ -1642,7 +1734,7 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
         # Directory entry
         data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
         dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=40)  # Connect to data_dir
-        dir_entry.pack(side="left", padx=(0, 5))
+        dir_entry.pack(side="left", fill="x", expand=True)
 
         # Function to allow selection of the output directory
         def browse_directory():

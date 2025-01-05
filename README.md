@@ -1,5 +1,5 @@
 # Consumer Pyramids Manager
-This package is designed to allow for sampling, building, and managing the CMIE Consumer Pyramids Data. The program runs in a GUI built with tkinkter and compiled for Apple Silicon Mac on version 15.2 using pyinstaller on python 3.10. See the release details for the latest version.
+This package is designed to allow for sampling, building, and managing the CMIE Consumer Pyramids Data. The program runs in a GUI built with tkinkter and compiled for Apple Silicon Mac on version 15.2 using pyinstaller on python 3.10.8. See the release details for the latest version.
 <br/><br/>
 
 ## Author:
@@ -38,13 +38,24 @@ The data directory containing the raw data files from must be structured as foll
                    ├── people_of_india_YYYYMMDD_YYYYMMDD_R.csv
                    └── ...
 
+#### Local Setup Instructions
+If you want to run program locally, you will need to clone the repository. You should have at least Python version 3.10 installed. Then install the required dependencies with: <br>
+
+    pip install -r ./requirements.txt
+    pip install tk
+
+The program can then by calling:
+<br>
+
+    python cpm.py
+You can then recompile (if you wish) using pyinstaller for your local machine by adjusting the `compile_program.sh` and `build.spec` files for your machine. 
 <br/><br/>
 ## Program Menus
 ### Pyramid Builder
 Allows the researcher to sample and construct pyramids using the following options:  
 
     Date Range: Date of observations
-    Sampling Level: Sample on individuals or households
+    Sampling Level: Sample on individuals or households or IDs
     Data Directory: Location for raw pyramids data
     Output Directory: Location for sampled data
     Variable Options: Desired variables in output data
@@ -53,6 +64,9 @@ Allows the researcher to sample and construct pyramids using the following optio
     Random Seed: Value to set for random sampling
 
 The sampled data will be output to a folder `sampled_pyramids_YYYYMMDD_HHMM` containing the output chunks and a log file which details the sampling parameters. Note that selecting large date ranges or many variables will result in significantly slower speeds. **Merging on all data is not advised.**
+
+#### Custom ID Sampling
+Sampling on Selected IDs allows the researcher to upload a csv with selected `HH_ID` and `MEM_ID`. To filter on the household IDs, include a csv with a single column called `HH_ID` with the desired IDs as integers. To filter on individual IDs, include a csv with two columns; one column called `HH_ID` and one column called `MEM_ID` with the desired IDs as integers.
     <br/><br/>
 ### Variable Explorer
 Allows the researcher to both view and select the desired variables from the available pyramids. Variables can also be selected outside the program by creating a manual variable selection based on the `pyramid_variables.yaml` in the repo.

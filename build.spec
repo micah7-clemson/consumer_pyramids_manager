@@ -1,5 +1,5 @@
-__version__ = "2.0.0"  # Semantic versioning
-__build__ = "10"       # Build number
+__version__ = "2.1.0"  # Semantic versioning
+__build__ = "2"       # Build number
 
 # build.spec
 from PyInstaller.building.api import PYZ, EXE, COLLECT
@@ -15,7 +15,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('config.yaml', '.'),
-        ('pyramid_ids.parquet', '.'),
+        ('pyramid_ids.csv', '.'),
         ('pyramid_variables.yaml', '.')
     ],
     hiddenimports=[
