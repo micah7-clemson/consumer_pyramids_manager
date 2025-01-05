@@ -1,14 +1,13 @@
 ASPIRATIONAL_WAVES_LOCATION: /aspirational/waves
 CONSUMPTION_MONTHLY_LOCATION: /consumption/monthly
 CONSUMPTION_WAVES_LOCATION: /consumption/waves
-DATA_DIRECTORY: /Users/micah/Desktop/pyramids_data
+DATA_DIRECTORY: 
 HH_INC_MONTHLY_LOCATION: /income/monthly/household
 INDIV_INC_MONTHLY_LOCATION: /income/monthly/individual
 INITIALIZATION_DATE: 01-04-2025
 MAX_SAMPLE_DATE: 11-30-2021
 MIN_SAMPLE_DATE: 01-31-2014
-OUTPUT_DIRECTORY: /Users/micah/Library/CloudStorage/GoogleDrive-micahdthomas@gmail.com/My
-  Drive/Documents/Research/__projects__/consumer_pyramids_manager/output
+OUTPUT_DIRECTORY:
 PEOPLE_WAVES_LOCATION: /people/waves
 TOTAL_HOUSEHOLDS: 236908
 TOTAL_INDIVIDUALS: 1261456

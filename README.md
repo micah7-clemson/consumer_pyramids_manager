@@ -32,7 +32,7 @@ This menu shows the current configuration of the data including the data directo
 <br/><br/>
 
 ## Setup Instructions
-This program is written as a standalone program and requires no dependencies. It was complied and tested on an arm64 Mac version 15.2. If you wish to use on an earlier version or a different architecture, you must recompile using pyinstaller. Due to program signatures, you may need to enable the program in settings. 
+This program is written as a standalone program and requires no dependencies. It was complied and tested on an arm64 Mac version 15.2. If you wish to use on an earlier version or a different architecture, you must recompile using pyinstaller. Due to program signatures, you will need to bypass GateKeeper and self sign. Unzip and click the program to run. You will get a failure to load pop-up. Go to settings "privacy and security". You see an option to "open anyway". Click that and approve the application. You can now open it as you would normally. 
 
 Upon first run, you must set both the data and output directories in the configuration menu. Failure to do so may result in errors. 
 
