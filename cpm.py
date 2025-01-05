@@ -1000,9 +1000,9 @@ class CPB_GUI:
         ### DATA BUILDER DRIVER
         # Button to initiate the data construction
         construct_button = ttk.Button(
-            button_frame, text="Construct Data", command=lambda: show_summary_popup()
+            button_frame, text="Construct Data", command=lambda: show_summary_popup(), width=15
         )
-        construct_button.pack(side="right", pady=10)  # Add consistent padding
+        construct_button.pack(side="right", pady=5)  # Add consistent padding
 
         # Function to initiate building summary confirmation window
         def show_summary_popup():
@@ -1213,8 +1213,8 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
         content_frame, action_frame, button_frame = self.create_content_window(
             "Variable Explorer"
         )
-        self.root.geometry("800x600")
-        self.center_window(self.root, 800, 600)
+        self.root.geometry("800x800")
+        self.center_window(self.root, 800, 800)
 
         # Create a mapping of display names to actual category names
         button_display_names = {
