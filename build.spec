@@ -1,5 +1,5 @@
-__version__ = "2.1.0"  # Semantic versioning
-__build__ = "2"       # Build number
+__version__ = "2.1.1"  # Semantic versioning
+__build__ = "1"       # Build number
 
 # build.spec
 from PyInstaller.building.api import PYZ, EXE, COLLECT

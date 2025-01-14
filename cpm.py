@@ -20,14 +20,13 @@ RANDOM_SEED = 126
 
 # This function is used to find the path to files such that it works when bundled and standalone
 def resource_path(relative_path):
-    # Grabbing the absoulte path for pyinstaller
     if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative_path)
+        return Path(sys._MEIPASS).joinpath(relative_path)
     if getattr(sys, "frozen", False):
-        # Running in a bundle
-        bundle_dir = os.path.dirname(sys.executable)
-        return os.path.join(bundle_dir, "..", "Resources", relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
+        bundle_dir = Path(sys.executable).parent
+        return bundle_dir.joinpath("..").joinpath("Resources").joinpath(relative_path)
+    return Path.cwd().joinpath(relative_path)
+
 
 # This function pulls all of the individual and household IDs
 def indiv_id_finder(config, progress_bar, warning_window):
@@ -36,25 +35,16 @@ def indiv_id_finder(config, progress_bar, warning_window):
         progress_value = 50 / len(
             glob.glob(
                 os.path.join(
-                    Path(
-                        str(config["DATA_DIRECTORY"]) + "/" + config[pyramid_type] + "/"
-                    ),
-                    "*.csv",
+                    Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type]),"*.csv",
                 )
             )
         )
         for file in os.listdir(
-            Path(str(config["DATA_DIRECTORY"]) + config[pyramid_type])
+            Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type])
         ):
             if file.endswith(".csv"):
-                pyramid = pd.read_csv(
-                    Path(
-                        str(config["DATA_DIRECTORY"])
-                        + "/"
-                        + config[pyramid_type]
-                        + "/"
-                        + file
-                    ),
+                file_path = Path(config["DATA_DIRECTORY"]).joinpath(config[pyramid_type], file)
+                pyramid = pd.read_csv(file_path,
                     usecols=["HH_ID", "MEM_ID"],
                 ).astype(str)
                 individuals = pd.concat([individuals, pyramid], axis=0)
@@ -77,14 +67,11 @@ def variable_finder(config):
         pyramid_type_location = pyramid_type + "_LOCATION"
         pyramid_files = glob.glob(
             os.path.join(
-                Path(
-                    str(config["DATA_DIRECTORY"]) + "/" + config[pyramid_type_location]
-                ),
-                "*.csv",
+                Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type_location]),"*.csv",
             )
         )
         unique_variables = {
-            var for file in pyramid_files for var in pd.read_csv(file, nrows=0).columns
+            var for file in pyramid_files for var in pd.read_csv(Path(file), nrows=0).columns
         }
         pyramid_variables[pyramid_type] = sorted(list(unique_variables))
 
@@ -96,7 +83,7 @@ def reinitializer(config, progress_bar, warning_window):
     if config["DATA_DIRECTORY"] is None:
         messagebox.showerror("Error", "Data directory is missing.")
         return 1
-    elif not os.path.exists(resource_path(config["DATA_DIRECTORY"])):
+    elif not Path(resource_path(config["DATA_DIRECTORY"])):
         messagebox.showerror("Error", "Data directory does not exist.")
         return 1
     
@@ -104,7 +91,7 @@ def reinitializer(config, progress_bar, warning_window):
     pyramid_variables = variable_finder(config)
     individual_data_location = config["INDIV_INC_MONTHLY_LOCATION"]
     individual_monthly_pyramids = os.path.join(
-        Path(str(config["DATA_DIRECTORY"]) + individual_data_location + "/"), "*.csv"
+        Path(str(config["DATA_DIRECTORY"])).joinpath(individual_data_location), "*.csv"
     )
     individual_monthly_pyramids = glob.glob(individual_monthly_pyramids)
     all_pyramid_dates = [re.findall(r"\d+", s) for s in individual_monthly_pyramids]
@@ -122,8 +109,8 @@ def reinitializer(config, progress_bar, warning_window):
     ).nunique()
     config["INITIALIZATION_DATE"] = datetime.now().strftime("%m-%d-%Y")
 
-    individuals.to_csv(resource_path("pyramid_ids.csv"), index=False)
-    with open(resource_path("pyramid_variables.yaml"), "w") as f:
+    individuals.to_csv(Path(resource_path("pyramid_ids.csv")), index=False)
+    with Path(resource_path("pyramid_variables.yaml")).open("w") as f:
         yaml.dump(pyramid_variables, f)
     with open(resource_path("config.yaml"), "w") as f:
         yaml.dump(config, f)
@@ -188,7 +175,7 @@ def pyramid_builder(
     if output_dir is None:
         messagebox.showerror("Error", "Output directory is missing.")
         return 1
-    if not os.path.exists(resource_path(output_dir)):
+    if not Path(resource_path(output_dir)):
         messagebox.showerror("Error", "Output directory does not exist.")
         return 1
     
@@ -196,18 +183,18 @@ def pyramid_builder(
     if data_dir is None:
         messagebox.showerror("Error", "Data directory is missing.")
         return 1
-    elif not os.path.exists(resource_path(data_dir)):
+    elif not Path(resource_path(data_dir)):
         messagebox.showerror("Error", "Data directory does not exist.")
         return 1
 
     # Sampling households or individuals based on user selection
     if is_sample_enabled:
-        if not os.path.exists(resource_path("pyramid_ids.csv")):
+        if not Path(resource_path("pyramid_ids.csv")):
             messagebox.showerror("Error", "Pyramid IDs not found.")
             return 1
         print("PASS")
         if sample_type == "ids":
-            if not os.path.exists(resource_path(selected_ids_location)):
+            if not Path(resource_path(selected_ids_location)):
                 messagebox.showerror("Error", "Selected IDs not found.")
                 return 1
             else:
@@ -237,7 +224,7 @@ def pyramid_builder(
 
     # Variable selection as either the selected list or all variables
     if var_selection == "selected":
-        if not os.path.exists(resource_path(selected_vars_location)):
+        if not Path(resource_path(selected_vars_location)):
             messagebox.showerror("Error", "Selected variables file does not exist.")
             return 1
         else:
@@ -255,7 +242,7 @@ def pyramid_builder(
             "INDIV_INC_MONTHLY",
             "PEOPLE_WAVES",
         ]
-        if not os.path.exists(resource_path("pyramid_variables.yaml")):
+        if not Path(resource_path("pyramid_variables.yaml")):
             messagebox.showerror("Error", "Pyramid variables not found.")
             return 1
         else:
@@ -1786,7 +1773,7 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
 # Function to initialize the config file during program start-up
 def load_config():
     # Then use it when opening your config file:
-    if not os.path.exists(resource_path("config.yaml")):
+    if not Path(resource_path("config.yaml")):
         # Create error window
         error_window = tk.Tk()
         error_window.title("Error")
