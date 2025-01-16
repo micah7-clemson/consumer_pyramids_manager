@@ -32,26 +32,19 @@ def resource_path(relative_path):
 def indiv_id_finder(config, progress_bar, warning_window):
     individuals = pd.DataFrame(columns=["HH_ID", "MEM_ID"])
     for pyramid_type in ["PEOPLE_WAVES_LOCATION", "INDIV_INC_MONTHLY_LOCATION"]:
-        progress_value = 50 / len(
-            glob.glob(
-                os.path.join(
-                    Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type]),"*.csv",
-                )
-            )
-        )
-        for file in os.listdir(
-            Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type])
-        ):
-            if file.endswith(".csv"):
-                file_path = Path(config["DATA_DIRECTORY"]).joinpath(config[pyramid_type], file)
-                pyramid = pd.read_csv(file_path,
-                    usecols=["HH_ID", "MEM_ID"],
-                ).astype(str)
-                individuals = pd.concat([individuals, pyramid], axis=0)
-                individuals = individuals.drop_duplicates()
+        pyramid_files = list(Path(config["DATA_DIRECTORY"]).joinpath(config[pyramid_type]).glob("*.csv"))
+        progress_value = 50 / len(pyramid_files)
+        for file in pyramid_files:
+            pyramid = pd.read_csv(
+                file,
+                usecols=["HH_ID", "MEM_ID"],
+            ).astype(str)
+            individuals = pd.concat([individuals, pyramid], axis=0)
+            individuals = individuals.drop_duplicates()
             progress_bar["value"] = progress_bar["value"] + progress_value
             warning_window.update()
     return individuals
+
 
 # This function finds all of the available variables in the given pyramids data
 def variable_finder(config):
@@ -64,18 +57,16 @@ def variable_finder(config):
         "INDIV_INC_MONTHLY",
         "PEOPLE_WAVES",
     ]:
-        pyramid_type_location = pyramid_type + "_LOCATION"
-        pyramid_files = glob.glob(
-            os.path.join(
-                Path(str(config["DATA_DIRECTORY"])).joinpath(config[pyramid_type_location]),"*.csv",
-            )
-        )
+        pyramid_files = list(Path(config["DATA_DIRECTORY"]).joinpath(config[pyramid_type + "_LOCATION"]).glob("*.csv"))
         unique_variables = {
-            var for file in pyramid_files for var in pd.read_csv(Path(file), nrows=0).columns
+            var
+            for file in pyramid_files
+            for var in pd.read_csv(Path(file), nrows=0).columns
         }
         pyramid_variables[pyramid_type] = sorted(list(unique_variables))
 
     return pyramid_variables
+
 
 # This function resets the configuration file used to manage the program
 def reinitializer(config, progress_bar, warning_window):
@@ -86,14 +77,10 @@ def reinitializer(config, progress_bar, warning_window):
     elif not Path(resource_path(config["DATA_DIRECTORY"])):
         messagebox.showerror("Error", "Data directory does not exist.")
         return 1
-    
+
     individuals = indiv_id_finder(config, progress_bar, warning_window)
     pyramid_variables = variable_finder(config)
-    individual_data_location = config["INDIV_INC_MONTHLY_LOCATION"]
-    individual_monthly_pyramids = os.path.join(
-        Path(str(config["DATA_DIRECTORY"])).joinpath(individual_data_location), "*.csv"
-    )
-    individual_monthly_pyramids = glob.glob(individual_monthly_pyramids)
+    individual_monthly_pyramids = [str(path) for path in Path(config["DATA_DIRECTORY"]).joinpath(config["INDIV_INC_MONTHLY_LOCATION"]).glob("*.csv")]
     all_pyramid_dates = [re.findall(r"\d+", s) for s in individual_monthly_pyramids]
     pyramid_dates = [sublist[-1] if sublist else None for sublist in all_pyramid_dates]
 
@@ -178,7 +165,7 @@ def pyramid_builder(
     if not Path(resource_path(output_dir)):
         messagebox.showerror("Error", "Output directory does not exist.")
         return 1
-    
+
     # Check data directory
     if data_dir is None:
         messagebox.showerror("Error", "Data directory is missing.")
@@ -189,38 +176,43 @@ def pyramid_builder(
 
     # Sampling households or individuals based on user selection
     if is_sample_enabled:
+        sampled_individuals = []
+        sampled_households = []
         if not Path(resource_path("pyramid_ids.csv")):
             messagebox.showerror("Error", "Pyramid IDs not found.")
             return 1
-        print("PASS")
         if sample_type == "ids":
             if not Path(resource_path(selected_ids_location)):
                 messagebox.showerror("Error", "Selected IDs not found.")
                 return 1
             else:
                 sampled_ids = pd.read_csv(resource_path(selected_ids_location))
-            print("YEP")
             if "MEM_ID" in sampled_ids.columns and "HH_ID" in sampled_ids.columns:
-                sampled_individuals = (str(sampled_ids["HH_ID"]) + sampled_ids["MEM_ID"].astype(str).str.zfill(2)).tolist()
+                sampled_individuals = (
+                    str(sampled_ids["HH_ID"])
+                    + sampled_ids["MEM_ID"].astype(str).str.zfill(2)
+                ).tolist()
                 sample_type == "individuals"
             elif "HH_ID" in sampled_ids.columns:
                 sampled_households = sampled_ids["HH_ID"].tolist()
                 sample_type == "households"
         else:
-            print("NAH")
             pyramid_ids = pd.read_csv(resource_path("pyramid_ids.csv"))
             if sample_type == "households":
-                print("BLEH")
                 sampled_households = random.sample(
                     pyramid_ids["HH_ID"].tolist(), int(n_households)
                 )
             elif sample_type == "individuals":
                 sampled_individuals = random.sample(
                     (
-                        pyramid_ids["HH_ID"] + pyramid_ids["MEM_ID"].str.zfill(2)
+                        str(pyramid_ids["HH_ID"]) + pyramid_ids["MEM_ID"].astype(str).str.zfill(2)
                     ).tolist(),
                     int(n_individuals),
                 )
+        if sampled_households:
+            sampled_households = list(map(str, sampled_households))
+        if sampled_individuals:
+            sampled_individuals = list(map(str, sampled_individuals))
 
     # Variable selection as either the selected list or all variables
     if var_selection == "selected":
@@ -248,19 +240,10 @@ def pyramid_builder(
         else:
             with open(resource_path("pyramid_variables.yaml"), "r") as f:
                 selected_vars = yaml.safe_load(f)
-
     # Pull all of the available data files for each of the pyramids
     selected_pyramid_files = {}
     for pyramid_type in selected_pyramid_types:
-        pyramid_files = os.path.join(
-            Path(
-                str(data_dir)
-                + config[pyramid_type + "_LOCATION"]
-                + "/"
-            ),
-            "*.csv",
-        )
-        selected_pyramid_files[pyramid_type] = sorted(glob.glob((pyramid_files)))
+        selected_pyramid_files[pyramid_type] = sorted(list(Path(config["DATA_DIRECTORY"]).joinpath(config[pyramid_type + "_LOCATION"]).glob("*.csv")))
 
     # Function used to export the merged data
     def export_dataframe(df, file_path, format):
@@ -293,12 +276,12 @@ def pyramid_builder(
             if not running_flag():
                 print("Operation cancelled by user")
                 return 1
-
+            
             ### Finding if that pyramid has data for the given month and locating that file
+            selected_pyramids_str_paths = [str(path) for path in selected_pyramid_files[pyramid_type]]
             pyramids_time_filter = check_contains_month(
                 list_of_date_files=[
-                    re.findall(r"\d+", s)
-                    for s in selected_pyramid_files[pyramid_type]
+                    re.findall(r"\d+", s) for s in selected_pyramids_str_paths
                 ],
                 current_month=current_month,
             )
@@ -312,7 +295,6 @@ def pyramid_builder(
             correct_pyramid = correct_pyramid[0] if correct_pyramid else None
             if correct_pyramid is None:
                 continue
-            print(correct_pyramid)
 
             # Reading in the variables in the given pyramid file
             available_vars = pd.read_csv(correct_pyramid, nrows=0).columns.tolist()
@@ -333,9 +315,7 @@ def pyramid_builder(
             if is_sample_enabled:
                 if sample_type == "households":
                     pyramid_iteration = pyramid_iteration[
-                        pyramid_iteration["HH_ID"]
-                        .astype(str)
-                        .isin(sampled_households)
+                        pyramid_iteration["HH_ID"].astype(str).isin(sampled_households)
                     ]
                 elif sample_type == "individuals":
                     if "MEM_ID" in pyramid_iteration.columns:
@@ -343,9 +323,7 @@ def pyramid_builder(
                         pyramid_iteration = pyramid_iteration[
                             (
                                 pyramid_iteration["HH_ID"].astype(str)
-                                + pyramid_iteration["MEM_ID"]
-                                .astype(str)
-                                .str.zfill(2)
+                                + pyramid_iteration["MEM_ID"].astype(str).str.zfill(2)
                             ).isin(sampled_individuals)
                         ]
                     else:
@@ -430,7 +408,6 @@ def pyramid_builder(
         )
         continuing_df = continuing_df.drop_duplicates()
 
-
         # Check file size and exporting if chunk exceeds the desired file size
         df_size = continuing_df.memory_usage(deep=True).sum()
         if df_size >= file_size_bytes or current_month == end_month:
@@ -449,7 +426,6 @@ def pyramid_builder(
         print(f"Current date after increment: {current_month}")
         print(f"End date: {end_month}")
         print(f"Comparison: {current_month <= end_month}")
-
 
     # Export summary log to the output directory
     with open(os.path.join(output_folder, "log.txt"), "w") as f:
@@ -485,14 +461,12 @@ class CPB_GUI:
         # Set position
         window.geometry(f"+{x}+{y}")
 
-
     # Function to clear the given window
     def clear_window(self):
         # Destroy all widgets in main container
         if hasattr(self, "main_container"):
             for widget in self.main_container.winfo_children():
                 widget.destroy()
-
 
     # Function to display the main menu
     def show_main_menu(self):
@@ -513,11 +487,16 @@ class CPB_GUI:
         buttons_frame = ttk.Frame(self.main_container, padding="20")
         buttons_frame.pack(fill="both", expand=True)
         # Stack of buttons
-        self.create_option_button(buttons_frame, "Pyramid Builder", self.pyramid_builder_window)
-        self.create_option_button(buttons_frame, "Variable Explorer", self.variable_explorer_window)
-        self.create_option_button(buttons_frame, "Configuration", self.configuration_window)
+        self.create_option_button(
+            buttons_frame, "Pyramid Builder", self.pyramid_builder_window
+        )
+        self.create_option_button(
+            buttons_frame, "Variable Explorer", self.variable_explorer_window
+        )
+        self.create_option_button(
+            buttons_frame, "Configuration", self.configuration_window
+        )
         # self.create_option_button(buttons_frame, "Help", self.show_build_window)
-
 
     # Function to place option button on window
     def create_option_button(self, parent, text, command):
@@ -556,7 +535,6 @@ class CPB_GUI:
         self.root.geometry("700x800")
         self.center_window(self.root, 700, 800)
 
-
         ### DATE SELECTION OPTIONS
         # Create date range frame
         date_frame = ttk.Frame(content_frame)
@@ -569,6 +547,7 @@ class CPB_GUI:
         # Labels
         ttk.Label(start_frame, text="Start Date").pack(anchor="w")
         ttk.Label(end_frame, text="End Date").pack(anchor="w")
+
         # Generate date options
         def generate_date_options():
             start_date = datetime.strptime(config["MIN_SAMPLE_DATE"], "%m-%d-%Y")
@@ -647,7 +626,6 @@ class CPB_GUI:
 
         # Initial validation
         validate_dates()
-
 
         ### DATA SAMPLING OPTIONS
         # Create sample observations frame
@@ -755,41 +733,45 @@ class CPB_GUI:
         # Function to check consistency of selection of sampling options
         def update_sample_state(*args):
             state = "normal" if sample_enabled.get() else "disabled"
+            
+            # Enable/disable all sample-related widgets
             households_radio.configure(state=state)
             individuals_radio.configure(state=state)
             ids_radio.configure(state=state)
-            households_spinbox.configure(state=state)
-            individuals_spinbox.configure(state=state)
-            ids_file_entry.configure(state=state)
-            ids_file_button.configure(state=state)
-
-            # If enabling and nothing selected, default to households
-            if sample_enabled.get() and not sample_type.get():
-                sample_type.set("households")
-
+            
             # Configure specific states based on selection
             if sample_enabled.get():
                 if sample_type.get() == "households":
+                    households_spinbox.configure(state="normal")
                     individuals_spinbox.configure(state="disabled")
                     ids_file_entry.configure(state="disabled")
                     ids_file_button.configure(state="disabled")
                 elif sample_type.get() == "individuals":
                     households_spinbox.configure(state="disabled")
+                    individuals_spinbox.configure(state="normal")
                     ids_file_entry.configure(state="disabled")
                     ids_file_button.configure(state="disabled")
                 else:  # ids
                     households_spinbox.configure(state="disabled")
                     individuals_spinbox.configure(state="disabled")
-
-            # Reset to max values if disabled
-            if not sample_enabled.get():
+                    ids_file_entry.configure(state="normal")
+                    ids_file_button.configure(state="normal")
+            else:
+                # Disable all input widgets when sampling is disabled
+                households_spinbox.configure(state="disabled")
+                individuals_spinbox.configure(state="disabled")
+                ids_file_entry.configure(state="disabled")
+                ids_file_button.configure(state="disabled")
+                
+                # Reset to max values if disabled
                 households_value.set(str(config["TOTAL_HOUSEHOLDS"]))
                 individuals_value.set(str(config["TOTAL_INDIVIDUALS"]))
                 ids_file.set("")  # Clear the ids file path when disabled
 
-
-        # Bind the update function to the sample_enabled variable
+        # Make sure to bind this function to both the checkbox and radio button changes
         sample_enabled.trace("w", update_sample_state)
+        sample_type.trace("w", update_sample_state)
+
 
         # Add the IDs radio button
         ids_radio = ttk.Radiobutton(
@@ -797,7 +779,7 @@ class CPB_GUI:
             text="Selected IDs:",
             variable=sample_type,
             value="ids",
-            command=update_sample_state
+            command=update_sample_state,
         )
         ids_radio.pack(anchor="w", padx=(20, 0))
 
@@ -806,11 +788,7 @@ class CPB_GUI:
         ids_file_frame = ttk.Frame(sample_frame)
         ids_file_frame.pack(fill="x", padx=(40, 0))
 
-        ids_file_entry = ttk.Entry(
-            ids_file_frame,
-            textvariable=ids_file,
-            width=10
-        )
+        ids_file_entry = ttk.Entry(ids_file_frame, textvariable=ids_file, width=10)
         ids_file_entry.pack(side="left", fill="x", expand=True)
 
         # Function to search for variable selection file
@@ -824,17 +802,12 @@ class CPB_GUI:
                 ids_file.set(filename)
 
         ids_file_button = ttk.Button(
-            ids_file_frame,
-            text="Browse",
-            command=lambda: browse_ids_file(ids_file)
+            ids_file_frame, text="Browse", command=lambda: browse_ids_file(ids_file)
         )
         ids_file_button.pack(side="right")
 
-
         # Initial state update
         update_sample_state()
-
-
 
         ### DATA DIRECTORY OPTIONS
         # Create output directory frame
@@ -850,7 +823,9 @@ class CPB_GUI:
 
         # Directory entry
         data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
-        dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=50)  # Connect to data_dir
+        dir_entry = ttk.Entry(
+            dir_select_frame, textvariable=data_dir, width=50
+        )  # Connect to data_dir
         dir_entry.pack(side="left", fill="x", expand=True)
 
         # Function to allow selection of the output directory
@@ -871,8 +846,6 @@ class CPB_GUI:
             dir_select_frame, text="Browse", command=browse_directory
         )
         browse_button.pack(side="left")
-
-
 
         ### OUTPUT DIRECTORY OPTIONS
         # Create output directory frame
@@ -904,15 +877,11 @@ class CPB_GUI:
                 with open(resource_path("config.yaml"), "w") as file:
                     yaml.dump(config, file)
 
-
         # Browse button
         browse_button = ttk.Button(
             dir_select_frame, text="Browse", command=browse_directory
         )
         browse_button.pack(side="left")
-
-
-
 
         ### VARIABLE SELECTION OPTIONS
         # Create Variable Options frame
@@ -956,8 +925,10 @@ class CPB_GUI:
         )
 
         # File entry
-        vars_file = tk.StringVar() #value=default_vars_file
-        file_entry = ttk.Entry(file_select_frame, textvariable=vars_file, width=48)  # Add textvariable here
+        vars_file = tk.StringVar()  # value=default_vars_file
+        file_entry = ttk.Entry(
+            file_select_frame, textvariable=vars_file, width=48
+        )  # Add textvariable here
         file_entry.pack(side="left", fill="x", expand=True)
 
         # Function to search for variable selection file
@@ -969,7 +940,6 @@ class CPB_GUI:
             )
             if filename:  # Only update if a file was selected
                 vars_file.set(filename)
-
 
         # Browse button
         vars_browse_button = ttk.Button(
@@ -1061,11 +1031,13 @@ class CPB_GUI:
         seed_entry.bind("<FocusOut>", validate_seed)
         seed_entry.bind("<Return>", validate_seed)
 
-
         ### DATA BUILDER DRIVER
         # Button to initiate the data construction
         construct_button = ttk.Button(
-            button_frame, text="Construct Data", command=lambda: show_summary_popup(), width=15
+            button_frame,
+            text="Construct Data",
+            command=lambda: show_summary_popup(),
+            width=15,
         )
         construct_button.pack(side="right", pady=5)  # Add consistent padding
 
@@ -1115,11 +1087,11 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
 
             if sample_enabled.get():
                 sample_text = {
-                    'households': 'Households',
-                    'individuals': 'Individuals',
-                    'ids': 'Selected IDs'
+                    "households": "Households",
+                    "individuals": "Individuals",
+                    "ids": "Selected IDs",
                 }[sample_type.get()]
-                
+
                 if sample_type.get() in ["households", "individuals"]:
                     sample_value = (
                         households_value.get()
@@ -1229,9 +1201,7 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                                 else None
                             ),
                             selected_ids_location=(
-                                ids_file.get()
-                                if sample_type.get() == "ids"
-                                else None
+                                ids_file.get() if sample_type.get() == "ids" else None
                             ),
                             running_flag=lambda: popup.running,
                             summary_text=summary_text,
@@ -1529,7 +1499,6 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
         )
         select_all_btn.pack(side="right", padx=5)
 
-
     # Function used to show the configuration window
     def configuration_window(self):
         content_frame, action_frame, button_frame = self.create_content_window(
@@ -1647,7 +1616,10 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
                 done_btn = ttk.Button(
                     done_frame,
                     text="Done",
-                    command=lambda: [warning_window.destroy(), self.configuration_window()],
+                    command=lambda: [
+                        warning_window.destroy(),
+                        self.configuration_window(),
+                    ],
                     width=15,
                 )
                 done_btn.pack(
@@ -1662,7 +1634,6 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
 
             # Start the progress update
             warning_window.after(100, update_progress)
-
 
         # Define order and custom names for config keys
         config_display = [
@@ -1720,7 +1691,9 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
 
         # Directory entry
         data_dir = tk.StringVar(value=config.get("DATA_DIRECTORY", ""))
-        dir_entry = ttk.Entry(dir_select_frame, textvariable=data_dir, width=40)  # Connect to data_dir
+        dir_entry = ttk.Entry(
+            dir_select_frame, textvariable=data_dir, width=40
+        )  # Connect to data_dir
         dir_entry.pack(side="left", fill="x", expand=True)
 
         # Function to allow selection of the output directory
@@ -1752,18 +1725,16 @@ Variable Selection: {"All Variables" if var_selection.get() == "all" else "Selec
 
         # Add the reinit button (modified to start disabled)
         reinit_button = ttk.Button(
-            button_frame, 
-            text="Reinitialize", 
-            command=show_reinit_warning, 
+            button_frame,
+            text="Reinitialize",
+            command=show_reinit_warning,
             width=15,
-            state="disabled" if not data_dir.get().strip() else "normal"
+            state="disabled" if not data_dir.get().strip() else "normal",
         )
         reinit_button.pack(side="right", padx=5)
 
         # Initial button state
         update_reinit_button()
-
-
 
     # Function to start the GUI
     def run(self):
